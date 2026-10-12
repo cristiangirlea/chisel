@@ -541,8 +541,6 @@ func (s *ChiselSuite) TestRun(c *C) {
 	}
 }
 
-// makeChiselYaml returns a valid chisel.yaml that contains the archives
-// supplied.
 func (s *ChiselSuite) TestRunIgnoresProArchivesWithoutCredentials(c *C) {
 	var logBuf bytes.Buffer
 	chisel.SetLogger(log.New(&logBuf, "", 0))
@@ -580,10 +578,7 @@ func (s *ChiselSuite) TestRunIgnoresProArchivesWithoutCredentials(c *C) {
 		c.Assert(err, IsNil)
 	}
 
-	restore := chisel.FakeArchiveOpen(func(options *archive.Options) (archive.Archive, error) {
-		if options.Pro != "" {
-			return nil, archive.ErrCredentialsNotFound
-		}
+	openUbuntu := func(options *archive.Options) (archive.Archive, error) {
 		return &testutil.TestArchive{
 			Opts: *options,
 			Packages: map[string]*testutil.TestPackage{
@@ -595,17 +590,45 @@ func (s *ChiselSuite) TestRunIgnoresProArchivesWithoutCredentials(c *C) {
 				},
 			},
 		}, nil
+	}
+	restore := chisel.FakeArchiveOpen(func(options *archive.Options) (archive.Archive, error) {
+		if options.Pro != "" {
+			return nil, archive.ErrProCredentialsNotFound
+		}
+		return openUbuntu(options)
 	})
 	defer restore()
 
 	_, err = chisel.Parser().ParseArgs([]string{"debug", "check-release-archives", "--release", releaseDir})
 	c.Assert(err, IsNil)
 
+	// The Pro archives are listed in one line, without any claim about the
+	// subscription itself.
 	logs := logBuf.String()
-	c.Assert(logs, Matches, "(?s).*Ubuntu Pro subscription not available, ignoring archives: ubuntu-pro\n.*")
-	c.Assert(strings.Contains(logs, "credentials not found"), Equals, false)
+	c.Assert(logs, Matches, "(?s).*Ignored Ubuntu Pro archives without credentials: ubuntu-pro\n.*")
+	c.Assert(strings.Contains(logs, "subscription"), Equals, false)
+
+	// An archive ignored for a reason the command does not know about is
+	// still reported on its own.
+	logBuf.Reset()
+	restore = chisel.FakeArchiveOpen(func(options *archive.Options) (archive.Archive, error) {
+		if options.Pro != "" {
+			return nil, archive.ErrCredentialsNotFound
+		}
+		return openUbuntu(options)
+	})
+	defer restore()
+
+	_, err = chisel.Parser().ParseArgs([]string{"debug", "check-release-archives", "--release", releaseDir})
+	c.Assert(err, IsNil)
+
+	logs = logBuf.String()
+	c.Assert(logs, Matches, `(?s).*Archive "ubuntu-pro" ignored: credentials not found\n.*`)
+	c.Assert(strings.Contains(logs, "Ubuntu Pro"), Equals, false)
 }
 
+// makeChiselYaml returns a valid chisel.yaml that contains the archives
+// supplied.
 func makeChiselYaml(archives []string) string {
 	rawChiselYaml := testutil.Reindent(testutil.DefaultChiselYaml)
 

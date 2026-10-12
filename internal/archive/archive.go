@@ -2,6 +2,7 @@ package archive
 
 import (
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -255,7 +256,9 @@ func candidateArchiveURLs(pro, arch string, oldRelease bool) ([]string, *credent
 		}
 		url := archiveInfo.BaseURL
 		creds, err := findCredentials(url)
-		if err != nil {
+		if errors.Is(err, ErrCredentialsNotFound) {
+			return nil, nil, ErrProCredentialsNotFound
+		} else if err != nil {
 			return nil, nil, err
 		}
 		return []string{url}, creds, nil

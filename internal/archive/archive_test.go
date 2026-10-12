@@ -582,6 +582,28 @@ func (s *httpSuite) TestProArchives(c *C) {
 	}
 }
 
+func (s *httpSuite) TestProArchiveWithoutCredentials(c *C) {
+	restore := fakeEnv("CHISEL_AUTH_DIR", c.MkDir())
+	defer restore()
+
+	options := archive.Options{
+		Label:      "ubuntu",
+		Version:    "20.04",
+		Arch:       "amd64",
+		Suites:     []string{"focal"},
+		Components: []string{"main"},
+		CacheDir:   c.MkDir(),
+		Pro:        archive.ProApps,
+		PubKeys:    []*packet.PublicKey{s.pubKey},
+	}
+
+	_, err := archive.Open(&options)
+	c.Assert(err, ErrorMatches, "credentials not found for Ubuntu Pro archive")
+	c.Assert(errors.Is(err, archive.ErrProCredentialsNotFound), Equals, true)
+	// Callers that only know about the generic error keep working.
+	c.Assert(errors.Is(err, archive.ErrCredentialsNotFound), Equals, true)
+}
+
 func (s *httpSuite) TestOpenUnmaintainedArchives(c *C) {
 	s.base = "http://old-releases.ubuntu.com/ubuntu/"
 	s.prepareArchive("jammy", "22.04", "amd64", []string{"main", "universe"})
