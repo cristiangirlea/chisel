@@ -264,9 +264,9 @@ func (s *S) TestFindCredentialsInDirMissingDir(c *C) {
 	creds, err = archive.FindCredentialsInDir("https://example.com/foo/bar", credsDir)
 	c.Assert(err, ErrorMatches, "^credentials not found$")
 	c.Assert(creds, IsNil)
-	// A missing credentials directory is expected without Ubuntu Pro
-	// credentials and must not be logged as if it were an error.
-	c.Assert(logBuf.String(), Equals, "")
+	// A directory given explicitly is reported when it cannot be read, so a
+	// mistyped CHISEL_AUTH_DIR leaves a lead in the logs.
+	c.Assert(logBuf.String(), Matches, `(?s)Cannot open credentials directory ".*auth.conf.d": .*`)
 
 	err = os.Mkdir(credsDir, 0755)
 	c.Assert(err, IsNil)
@@ -284,6 +284,34 @@ func (s *S) TestFindCredentialsInDirMissingDir(c *C) {
 	c.Assert(creds, NotNil)
 	c.Assert(creds.Username, Equals, "admin")
 	c.Assert(creds.Password, Equals, "swordfish")
+}
+
+func (s *S) TestFindCredentialsDefaultDirMissing(c *C) {
+	var logBuf bytes.Buffer
+	archive.SetLogger(log.New(&logBuf, "", 0))
+	defer archive.SetLogger(c)
+
+	restore := fakeEnv("CHISEL_AUTH_DIR", "")
+	defer restore()
+	credsDir := filepath.Join(c.MkDir(), "auth.conf.d")
+	restoreDir := archive.FakeDefaultCredsDir(credsDir)
+	defer restoreDir()
+
+	// Without Ubuntu Pro credentials the default directory usually does not
+	// exist at all, which is not worth a log line.
+	creds, err := archive.FindCredentials("http://example.com/my/site")
+	c.Assert(err, ErrorMatches, "^credentials not found$")
+	c.Assert(creds, IsNil)
+	c.Assert(logBuf.String(), Equals, "")
+
+	// Any other problem with the default directory is still reported.
+	err = os.WriteFile(credsDir, []byte("not a directory"), 0600)
+	c.Assert(err, IsNil)
+
+	creds, err = archive.FindCredentials("http://example.com/my/site")
+	c.Assert(err, ErrorMatches, "^credentials not found$")
+	c.Assert(creds, IsNil)
+	c.Assert(logBuf.String(), Matches, `(?s)Cannot open credentials directory ".*auth.conf.d": .*`)
 }
 
 func fakeEnv(name, value string) (restore func()) {
@@ -308,9 +336,14 @@ func (s *S) TestFindCredentials(c *C) {
 	restore := fakeEnv("CHISEL_AUTH_DIR", credsDir)
 	defer restore()
 
+	var logBuf bytes.Buffer
+	archive.SetLogger(log.New(&logBuf, "", 0))
+	defer archive.SetLogger(c)
+
 	creds, err = archive.FindCredentials("http://example.com/my/site")
 	c.Assert(err, ErrorMatches, "^credentials not found$")
 	c.Assert(creds, IsNil)
+	c.Assert(logBuf.String(), Matches, `(?s)Cannot open credentials directory ".*auth.conf.d": .*`)
 
 	err = os.Mkdir(credsDir, 0755)
 	c.Assert(err, IsNil)
