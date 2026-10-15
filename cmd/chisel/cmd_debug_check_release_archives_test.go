@@ -593,7 +593,7 @@ func (s *ChiselSuite) TestRunIgnoresProArchivesWithoutCredentials(c *C) {
 	}
 	restore := chisel.FakeArchiveOpen(func(options *archive.Options) (archive.Archive, error) {
 		if options.Pro != "" {
-			return nil, archive.ErrProCredentialsNotFound
+			return nil, archive.ErrCredentialsNotFound
 		}
 		return openUbuntu(options)
 	})
@@ -602,17 +602,14 @@ func (s *ChiselSuite) TestRunIgnoresProArchivesWithoutCredentials(c *C) {
 	_, err = chisel.Parser().ParseArgs([]string{"debug", "check-release-archives", "--release", releaseDir})
 	c.Assert(err, IsNil)
 
-	// The Pro archives are listed in one line, without any claim about the
-	// subscription itself.
 	logs := logBuf.String()
-	c.Assert(logs, Matches, "(?s).*Ignored Ubuntu Pro archives without credentials: ubuntu-pro\n.*")
-	c.Assert(strings.Contains(logs, "subscription"), Equals, false)
+	c.Assert(logs, Matches, "(?s).*Ubuntu Pro archives without credentials ignored: ubuntu-pro\n.*")
+	c.Assert(strings.Contains(logs, `Archive "ubuntu-pro" ignored`), Equals, false)
 
-	// An archive ignored for a reason the command does not know about is
-	// still reported on its own.
+	// A non-Pro archive without credentials keeps its own message.
 	logBuf.Reset()
 	restore = chisel.FakeArchiveOpen(func(options *archive.Options) (archive.Archive, error) {
-		if options.Pro != "" {
+		if options.Pro == "" {
 			return nil, archive.ErrCredentialsNotFound
 		}
 		return openUbuntu(options)
@@ -623,7 +620,7 @@ func (s *ChiselSuite) TestRunIgnoresProArchivesWithoutCredentials(c *C) {
 	c.Assert(err, IsNil)
 
 	logs = logBuf.String()
-	c.Assert(logs, Matches, `(?s).*Archive "ubuntu-pro" ignored: credentials not found\n.*`)
+	c.Assert(logs, Matches, `(?s).*Archive "ubuntu" ignored: credentials not found\n.*`)
 	c.Assert(strings.Contains(logs, "Ubuntu Pro"), Equals, false)
 }
 

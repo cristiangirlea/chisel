@@ -77,10 +77,11 @@ func (cmd *cmdDebugCheckReleaseArchives) Execute(args []string) error {
 			Maintained: archiveInfo.Maintained,
 			OldRelease: archiveInfo.OldRelease,
 		})
-		if errors.Is(err, archive.ErrProCredentialsNotFound) {
+		if archiveInfo.Pro != "" && errors.Is(err, archive.ErrCredentialsNotFound) {
 			ignoredProArchives = append(ignoredProArchives, archiveName)
 			continue
-		} else if errors.Is(err, archive.ErrCredentialsNotFound) {
+		}
+		if errors.Is(err, archive.ErrCredentialsNotFound) {
 			logf("Archive %q ignored: credentials not found\n", archiveName)
 			continue
 		} else if err != nil {

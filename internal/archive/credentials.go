@@ -77,11 +77,6 @@ var defaultCredsDir = "/etc/apt/auth.conf.d"
 
 var ErrCredentialsNotFound = errors.New("credentials not found")
 
-// ErrProCredentialsNotFound is returned when an Ubuntu Pro archive is requested
-// but no credentials for it are found. It matches ErrCredentialsNotFound in
-// errors.Is comparisons.
-var ErrProCredentialsNotFound = fmt.Errorf("%w for Ubuntu Pro archive", ErrCredentialsNotFound)
-
 // findCredentials searches credentials for repoURL in configuration files in
 // directory specified by CHISEL_AUTH_DIR environment variable if it's
 // non-empty, otherwise /etc/apt/auth.conf.d. A missing default directory is

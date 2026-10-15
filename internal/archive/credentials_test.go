@@ -264,8 +264,6 @@ func (s *S) TestFindCredentialsInDirMissingDir(c *C) {
 	creds, err = archive.FindCredentialsInDir("https://example.com/foo/bar", credsDir)
 	c.Assert(err, ErrorMatches, "^credentials not found$")
 	c.Assert(creds, IsNil)
-	// A directory given explicitly is reported when it cannot be read, so a
-	// mistyped CHISEL_AUTH_DIR leaves a lead in the logs.
 	c.Assert(logBuf.String(), Matches, `(?s)Cannot open credentials directory ".*auth.conf.d": .*`)
 
 	err = os.Mkdir(credsDir, 0755)
@@ -297,8 +295,7 @@ func (s *S) TestFindCredentialsDefaultDirMissing(c *C) {
 	restoreDir := archive.FakeDefaultCredsDir(credsDir)
 	defer restoreDir()
 
-	// Without Ubuntu Pro credentials the default directory usually does not
-	// exist at all, which is not worth a log line.
+	// The default directory comes with apt, so it not existing is not logged.
 	creds, err := archive.FindCredentials("http://example.com/my/site")
 	c.Assert(err, ErrorMatches, "^credentials not found$")
 	c.Assert(creds, IsNil)

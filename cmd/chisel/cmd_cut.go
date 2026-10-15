@@ -97,7 +97,7 @@ func (cmd *cmdCut) Execute(args []string) error {
 			OldRelease: archiveInfo.OldRelease,
 		})
 		if err != nil {
-			if errors.Is(err, archive.ErrProCredentialsNotFound) {
+			if archiveInfo.Pro != "" && errors.Is(err, archive.ErrCredentialsNotFound) {
 				ignoredProArchives = append(ignoredProArchives, archiveName)
 				continue
 			}
@@ -138,14 +138,10 @@ func (cmd *cmdCut) Execute(args []string) error {
 	return err
 }
 
-// logIgnoredProArchives logs a single message listing the Ubuntu Pro archives
-// that were ignored because no credentials were found for them. It says
-// nothing about the subscription itself: credentials may well exist for
-// other Pro archives.
 func logIgnoredProArchives(archiveNames []string) {
 	if len(archiveNames) == 0 {
 		return
 	}
 	sort.Strings(archiveNames)
-	logf("Ignored Ubuntu Pro archives without credentials: %s", strings.Join(archiveNames, ", "))
+	logf("Ubuntu Pro archives without credentials ignored: %s", strings.Join(archiveNames, ", "))
 }
